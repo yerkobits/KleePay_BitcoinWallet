@@ -1,0 +1,63 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/text_saldo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/saldo_background"
+        android:padding="16dp"
+        android:text="_"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:typeface="monospace"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp"/>
+
+    <LinearLayout
+        android:id="@+id/button_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal"
+        android:layout_below="@id/text_saldo">
+
+        <Button
+            android:id="@+id/button_recibir"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:text="Recibir"
+            android:backgroundTint="@color/green"/>
+
+        <Button
+            android:id="@+id/historialTransacciones"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:drawableRight="@drawable/ic_list_icon"
+            android:background="@android:color/transparent"/>
+
+        <Button
+            android:id="@+id/button_enviar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:text="Enviar"
+            android:backgroundTint="@color/green"/>
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/listaFrases"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_layout"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"/>
+</RelativeLayout>
