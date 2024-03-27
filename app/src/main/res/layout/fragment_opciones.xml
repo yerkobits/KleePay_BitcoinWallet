@@ -1,0 +1,57 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+<Button
+    android:id="@+id/button_volver"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Volver"
+    android:drawableLeft="@drawable/ic_arrow_back"
+    android:layout_alignParentTop="true"
+    android:layout_alignParentStart="true"/>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <FrameLayout
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <!-- Aquí puedes agregar tus vistas, como TextViews, Buttons, etc. -->
+        <Button
+            android:id="@+id/btn_clave_privada"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:backgroundTint="@color/green"
+            android:text="clave privada" />
+
+        <Button
+            android:id="@+id/btn_ayuda"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginTop="100dp"
+            android:backgroundTint="@color/green"
+            android:text="Ayuda" />
+
+        <Button
+            android:id="@+id/btn_contacto"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginTop="200dp"
+            android:backgroundTint="@color/green"
+            android:text="Contacto" />
+
+
+    </FrameLayout>
+
+</LinearLayout>
+
+</RelativeLayout>

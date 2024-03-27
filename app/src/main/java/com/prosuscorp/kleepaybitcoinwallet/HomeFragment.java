@@ -1,11 +1,17 @@
 package com.prosuscorp.kleepaybitcoinwallet;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -25,6 +31,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.Call;
 import okhttp3.Callback;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 public class HomeFragment extends Fragment {
 
@@ -95,17 +104,33 @@ public class HomeFragment extends Fragment {
         });
 
 
+        Button buttonOpciones = view.findViewById(R.id.button_opciones);
+        buttonOpciones.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                OpcionesFragment opcionesFragment = new OpcionesFragment();
+                FragmentTransaction transaction = getFragmentManager().beginTransaction();
+                transaction.replace(R.id.fragment_container, opcionesFragment);
+                transaction.commit();
+            }
+        });
+
+
+        muestraSaldo(tuDireccionBitcoin);
+
+/*
         // Crea un cliente HTTP
         OkHttpClient client = new OkHttpClient();
 
-        String url = "https://blockchain.info/rawaddr/" + tuDireccionBitcoin;
+//      String url = "https://blockchain.info/rawaddr/" + tuDireccionBitcoin;
+        String url = "https://api.blockcypher.com/v1/btc/main/addrs/" + tuDireccionBitcoin;
 
         // Crea una solicitud GET
         Request request = new Request.Builder()
                 .url(url)
                 .build();
 
-// Realiza la solicitud y obtén la respuesta
+        // Realiza la solicitud y obtén la respuesta
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -135,12 +160,15 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
+*/
+
+
 
         return view;
     }
 
     private void animateButtonsAndSaldoToTop() {
-        float newY = -buttonLayout.getY()/3;
+        float newY = -buttonLayout.getY() + buttonLayout.getHeight()/2 + textSaldo.getHeight();
         buttonLayout.animate()
                 .translationY(newY)
                 .setDuration(1000)
@@ -172,19 +200,89 @@ public class HomeFragment extends Fragment {
                 "transacción de ejemplo 02",
                 "transacción de ejemplo 03",
                 "transacción de ejemplo 04",
-                "transacción de ejemplo 05"
+                "transacción de ejemplo 05",
+                "transacción de ejemplo 06",
+                "transacción de ejemplo 07",
+                "transacción de ejemplo 08",
+                "transacción de ejemplo 09",
+                "transacción de ejemplo 10",
+                "transacción de ejemplo 11",
+                "transacción de ejemplo 12",
+                "transacción de ejemplo 13",
+                "transacción de ejemplo 14",
+                "transacción de ejemplo 15",
+                "transacción de ejemplo 16",
+                "transacción de ejemplo 17",
+                "transacción de ejemplo 18",
+                "transacción de ejemplo 19",
+                "transacción de ejemplo 20"
         };
         ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, frases);
         listaFrases.setAdapter(adapter);
         listaFrases.setAlpha(0f);
         listaFrases.setVisibility(View.VISIBLE);
+
+        float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
         listaFrases.animate()
                 .alpha(1f)
+                .translationY(newY)
                 .setDuration(500)
                 .start();
     }
     private void hideList() {
         listaFrases.setVisibility(View.GONE);
+    }
+
+
+    private void muestraSaldo(String address) {
+
+        // Crea un cliente HTTP
+        OkHttpClient client = new OkHttpClient();
+
+//        String url = "https://blockchain.info/rawaddr/" + address;
+        String url = "https://api.blockcypher.com/v1/btc/main/addrs/" + address;
+
+        // Crea una solicitud GET
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+
+        // Realiza la solicitud y obtén la respuesta
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    final String myResponse = response.body().string();
+
+                    // Aquí puedes parsear la respuesta JSON para obtener el saldo
+                    // y luego mostrarlo en textSaldo
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                JSONObject json = new JSONObject(myResponse);
+                                long satoshis = json.getLong("final_balance");
+                                double bitcoins = satoshis / 1e8;
+//                              textSaldo.setText(String.valueOf(bitcoins) + " BTC");
+                                NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+                                nf.setMinimumFractionDigits(8);
+                                nf.setMaximumFractionDigits(8);
+                                textSaldo.setText(String.format("%.8f", bitcoins) + " BTC");
+//                                        DecimalFormat df = new DecimalFormat("0.00000000");
+//                                        textSaldo.setText(df.format(bitcoins));
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                }
+            }
+        });
     }
 
 
