@@ -3,10 +3,16 @@ package com.prosuscorp.kleepaybitcoinwallet;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +31,12 @@ import org.bitcoinj.core.SegwitAddress;
 import org.bitcoinj.params.MainNetParams;
 import android.content.SharedPreferences;
 import android.content.Context;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class RecibirFragment extends Fragment {
 
@@ -84,24 +96,31 @@ public class RecibirFragment extends Fragment {
 
                 // Muestra el código QR en el ImageView
                 qrCodeImageView.setImageBitmap(bitmap);
+
+                // Comparte el código QR desde la memoria
+                buttonCompartir.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        String bitmapPath = MediaStore.Images.Media.insertImage(getActivity().getContentResolver(), bitmap, "title", null);
+                        Uri bitmapUri = Uri.parse(bitmapPath);
+                        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType("image/*");
+                        shareIntent.putExtra(Intent.EXTRA_STREAM, bitmapUri);
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, "Dirección Bitcoin: \n" + bitcoinAddress);
+                        startActivity(Intent.createChooser(shareIntent, "Compartir"));
+                    }
+                });
+
+
             } catch (WriterException e) {
                 e.printStackTrace();
             }
+
+
         } else {
             // Si no se ha generado una dirección Bitcoin, muestra el botón "Generar"
             buttonGenerar.setVisibility(View.VISIBLE);
         }
-
-        buttonCompartir.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("text/plain");
-                shareIntent.putExtra(Intent.EXTRA_TEXT, "Dirección Bitcoin: \n\n" + bitcoinAddress);
-                startActivity(Intent.createChooser(shareIntent, "Compartir"));
-            }
-        });
-
 
         // Agrega un listener al botón buttonGenerar
         buttonGenerar.setOnClickListener(new View.OnClickListener() {
