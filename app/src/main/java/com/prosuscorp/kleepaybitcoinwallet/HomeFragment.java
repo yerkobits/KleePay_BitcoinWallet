@@ -1,8 +1,14 @@
 package com.prosuscorp.kleepaybitcoinwallet;
 
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
@@ -15,6 +21,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -23,6 +30,7 @@ import android.widget.TextView;
 import android.content.SharedPreferences;
 import android.content.Context;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -87,7 +95,7 @@ public class HomeFragment extends Fragment {
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
 
         // Recupera la dirección Bitcoin
-        String tuDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
+        String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
 
 
         // Agrega un listener al botón buttonRecibir
@@ -127,7 +135,8 @@ public class HomeFragment extends Fragment {
         });
 
 
-        muestraSaldo(tuDireccionBitcoin);
+        muestraSaldo(miDireccionBitcoin);
+//        mostrarTxHashTestnet();
 
 
         return view;
@@ -145,8 +154,9 @@ public class HomeFragment extends Fragment {
                 .withEndAction(new Runnable() {
                     @Override
                     public void run() {
-                        showList();
-                        mostrarTxHashTestnet();
+//                        showList();
+                          mostrarTxHash();
+
                     }
                 })
                 .start();
@@ -162,66 +172,6 @@ public class HomeFragment extends Fragment {
                 .start();
     }
 
-/*    public class TransactionResponse {
-        private List<Transaction> txs;
-
-        public List<String> getTransactions() {
-            List<String> transactions = new ArrayList<>();
-            for (Transaction tx : txs) {
-                transactions.add(tx.tx_hash);
-            }
-            return transactions;
-        }
-
-        public class Transaction {
-            String tx_hash; // Este campo debe coincidir con el nombre del campo en la respuesta JSON de la API
-
-            @Override
-            public String toString() {
-                return tx_hash;
-            }
-        }
-    }*/
-
-
-/*    private void showList() {
-        String url = "https://api.blockcypher.com/v1/btc/main/addrs/bc1qanfaeqd26j59l9krltpjf3cd9tm3knxtrpfngk";
-
-        StringRequest stringRequest = new StringRequest(com.android.volley.Request.Method.GET, url,
-                new com.android.volley.Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        Gson gson = new Gson();
-                        TransactionResponse transactionResponse = gson.fromJson(response, TransactionResponse.class);
-Log.d("ykb", "transactionResponse: " + transactionResponse );
-
-                        // Aquí asumimos que TransactionResponse tiene un método getTransactions() que devuelve una lista de transacciones
-                        List<String> transactions = transactionResponse.getTransactions();
-                        for (String tx : transactions) {
-                            Log.d("ykb", "tx_hash: " + tx);
-                        }
-
-                        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, transactions);
-                        listaFrases.setAdapter(adapter);
-                        listaFrases.setAlpha(0f);
-                        listaFrases.setVisibility(View.VISIBLE);
-
-                        float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
-                        listaFrases.animate()
-                                .alpha(1f)
-                                .translationY(newY)
-                                .setDuration(500)
-                                .start();
-                    }
-                }, new com.android.volley.Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                // Manejo de errores
-            }
-        });
-
-        Volley.newRequestQueue(getContext()).add(stringRequest);
-    }*/
     private void showList() {
         String[] frases = new String[]{
                 "transacción de ejemplo 01",
@@ -258,6 +208,8 @@ Log.d("ykb", "transactionResponse: " + transactionResponse );
                 .setDuration(500)
                 .start();
     }
+
+
     private void hideList() {
         listaFrases.setVisibility(View.GONE);
     }
@@ -268,8 +220,8 @@ Log.d("ykb", "transactionResponse: " + transactionResponse );
         // Crea un cliente HTTP
         OkHttpClient client = new OkHttpClient();
 
-//        String url = "https://blockchain.info/rawaddr/" + address;
-        String url = "https://api.blockcypher.com/v1/btc/main/addrs/" + address;
+        // Actualiza la URL para usar la API de Blockchair
+        String url = "https://api.blockchair.com/bitcoin/dashboards/address/" + address + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6";
 
         // Crea una solicitud GET
         Request request = new Request.Builder()
@@ -295,7 +247,7 @@ Log.d("ykb", "transactionResponse: " + transactionResponse );
                         public void run() {
                             try {
                                 JSONObject json = new JSONObject(myResponse);
-                                long satoshis = json.getLong("final_balance");
+                                long satoshis = json.getJSONObject("data").getJSONObject(address).getJSONObject("address").getLong("balance");
                                 double bitcoins = satoshis / 1e8;
                                 String montoFormateado = String.format("%.8f", bitcoins);
                                 String montoConPunto = montoFormateado.replace(',', '.');
@@ -312,26 +264,157 @@ Log.d("ykb", "transactionResponse: " + transactionResponse );
 
 
 
-    private void mostrarTxHashTestnet() {
-        String[] frases = new String[]{
-                "transacción de ejemplo 01",
-                "transacción de ejemplo 02",
-                "transacción de ejemplo 03",
-                "transacción de ejemplo 04",
-                "transacción de ejemplo 05",
-        };
+    private void mostrarTxHash() {
+        // Carga las preferencias compartidas
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+        // Recupera la dirección Bitcoin
+        String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
 
         OkHttpClient httpClient = new OkHttpClient();
 
         Request request = new Request.Builder()
-              .url("https://api.blockcypher.com/v1/btc/test3/addrs/tb1q5ktghnkphhhvc6eru9wz0a4uarec56l7yyaycc")
-//                .url("https://blockstream.info/testnet/address/tb1q5ktghnkphhhvc6eru9wz0a4uarec56l7yyaycc")
+                .url("https://api.blockchair.com/bitcoin/dashboards/address/" + miDireccionBitcoin + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6" )
                 .build();
+
+        // Muestra un ProgressDialog durante la carga
+        ProgressDialog progressDialog = new ProgressDialog(getContext());
+        progressDialog.setMessage("Cargando transacciones...");
+        progressDialog.show();
 
         httpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 e.printStackTrace();
+                progressDialog.dismiss();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+                try {
+                    JSONObject jsonObject = new JSONObject(response.body().string());
+                    JSONArray transactions = jsonObject.getJSONObject("data").getJSONObject(miDireccionBitcoin).getJSONArray("transactions");
+
+                    ArrayList<String> links = new ArrayList<>();
+                    for (int i = 0; i < transactions.length(); i++) {
+                        String tx_hash = transactions.getString(i);
+                        links.add("https://mempool.space/es/tx/" + tx_hash);
+                    }
+
+                    // Actualizar la ListView en el hilo principal de la UI
+                    // Actualizar la ListView en el hilo principal de la UI
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), R.layout.list_item, R.id.tx_hash, links) {
+                                @NonNull
+                                @Override
+                                public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                                    View view = super.getView(position, convertView, parent);
+                                    TextView txHashView = view.findViewById(R.id.tx_hash);
+                                    TextView txAmountView = view.findViewById(R.id.tx_amount);
+
+                                    String tx_hash = links.get(position).substring(29);  // Solo muestra el tx_hash
+                                    String compact_tx_hash = tx_hash.substring(0, 8) + " ... " + tx_hash.substring(tx_hash.length() - 8);
+                                    txHashView.setText("hash: " + compact_tx_hash);
+
+                                    // Aquí debes obtener el monto de la transacción y determinar si es de entrada o salida
+                                    // Esto dependerá de cómo estén estructurados los datos de tu API
+                                    double tx_amount = 0.00010000;  // Reemplaza esto con el monto de la transacción
+                                    boolean is_incoming = true;  // Reemplaza esto con un booleano que indique si la transacción es de entrada
+
+                                    if (is_incoming) {
+                                        txAmountView.setTextColor(Color.GREEN);
+                                        txAmountView.setText("+" + String.format("%.8f", tx_amount));
+                                    } else {
+                                        txAmountView.setTextColor(Color.RED);
+                                        txAmountView.setText("-" + String.format("%.8f", tx_amount));
+                                    }
+
+                                    return view;
+                                }
+
+                            };
+                            listaFrases.setAdapter(adapter);
+                            listaFrases.setAlpha(0f);
+                            listaFrases.setVisibility(View.VISIBLE);
+
+                            float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
+                            listaFrases.animate()
+                                    .alpha(1f)
+                                    .translationY(newY)
+                                    .setDuration(500)
+                                    .start();
+
+                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                @Override
+                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                    String url = links.get(position);
+                                    Intent i = new Intent(Intent.ACTION_VIEW);
+                                    i.setData(Uri.parse(url));
+                                    startActivity(i);
+                                }
+                            });
+
+                            // Cierra el ProgressDialog después de cargar los datos
+                            progressDialog.dismiss();
+                        }
+                    });
+
+
+/*                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, links);
+                            listaFrases.setAdapter(adapter);
+                            listaFrases.setVisibility(View.VISIBLE);
+
+                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                @Override
+                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                    String url = links.get(position);
+                                    Intent i = new Intent(Intent.ACTION_VIEW);
+                                    i.setData(Uri.parse(url));
+                                    startActivity(i);
+                                }
+                            });
+
+                            // Cierra el ProgressDialog después de cargar los datos
+                            progressDialog.dismiss();
+                        }
+                    });*/
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    progressDialog.dismiss();
+                }
+            }
+        });
+    }
+
+/*    private void mostrarTxHash() {
+        // Carga las preferencias compartidas
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+        // Recupera la dirección Bitcoin
+        String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
+
+        OkHttpClient httpClient = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .url("https://api.blockchair.com/bitcoin/dashboards/address/" + miDireccionBitcoin + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6" )
+                .build();
+
+        // Muestra un ProgressDialog durante la carga
+        ProgressDialog progressDialog = new ProgressDialog(getContext());
+        progressDialog.setMessage("Cargando transacciones...");
+        progressDialog.show();
+
+        httpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                progressDialog.dismiss();
             }
 
             @Override
@@ -345,45 +428,52 @@ Log.d("ykb", "transactionResponse: " + transactionResponse );
                     ArrayList<String> links = new ArrayList<>();
                     for (int i = 0; i < txrefs.length(); i++) {
                         String tx_hash = txrefs.getJSONObject(i).getString("tx_hash");
-                        links.add("https://mempool.space/es/testnet/tx/" + tx_hash);
-                        Log.d("ykb", "https://mempool.space/es/testnet/tx/" + tx_hash);
+                        links.add("https://mempool.space/es/tx/" + tx_hash);
                     }
-/*                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < txrefs.length(); i++) {
-                        String tx_hash = txrefs.getJSONObject(i).getString("tx_hash");
-                        sb.append("https://mempool.space/es/testnet/tx/" + tx_hash + "\n");
-                        Log.d("ykb", "https://mempool.space/es/testnet/tx/" + tx_hash);
-                    }*/
-                    Log.d("ykb", "links: " + links);
+                    // Imprime los datos (links) justo antes de configurar el adaptador
+                    Log.d("ykb", "links: " + links.toString());
 
-                    StringBuilder sb = new StringBuilder();
-                    for (String link : links) {
-                        Log.d("ykb", "link: " + link);
-                        sb.append("\"" + link + "\"," + "\n");
-                    }
-                    Log.d("ykb", "string builder: " + sb);
-                    Log.d("ykb", "frases: " + frases);
+                    // Actualizar la ListView en el hilo principal de la UI
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, links);
+                            listaFrases.setAdapter(adapter);
+                            listaFrases.setAlpha(0f);
+                            listaFrases.setVisibility(View.VISIBLE);
 
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, links);
-                    Log.d("ykb", "adapter: " + adapter);
+                            float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
+                            listaFrases.animate()
+                                    .alpha(1f)
+                                    .translationY(newY)
+                                    .setDuration(500)
+                                    .start();
 
-                    listaFrases.setAdapter(adapter);
-                    listaFrases.setAlpha(0f);
-                    listaFrases.setVisibility(View.VISIBLE);
+                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                @Override
+                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                    String url = links.get(position);
+                                    Intent i = new Intent(Intent.ACTION_VIEW);
+                                    i.setData(Uri.parse(url));
+                                    startActivity(i);
+                                }
+                            });
 
-                    float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
-                    listaFrases.animate()
-                            .alpha(1f)
-                            .translationY(newY)
-                            .setDuration(500)
-                            .start();
+                            // Cierra el ProgressDialog después de cargar los datos
+                            progressDialog.dismiss();
+                        }
+                    });
 
                 } catch (JSONException e) {
                     e.printStackTrace();
+                    progressDialog.dismiss();
                 }
             }
         });
-    }
+    }*/
+
+
+
 
 
 
