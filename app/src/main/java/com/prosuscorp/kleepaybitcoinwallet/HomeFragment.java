@@ -44,6 +44,7 @@ import okhttp3.Callback;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -136,7 +137,6 @@ public class HomeFragment extends Fragment {
 
 
         muestraSaldo(miDireccionBitcoin);
-//        mostrarTxHashTestnet();
 
 
         return view;
@@ -154,8 +154,7 @@ public class HomeFragment extends Fragment {
                 .withEndAction(new Runnable() {
                     @Override
                     public void run() {
-//                        showList();
-                          mostrarTxHash();
+                          mostrarHistorial();
 
                     }
                 })
@@ -168,43 +167,6 @@ public class HomeFragment extends Fragment {
                 .start();
         textSaldo.animate()
                 .translationY(0)
-                .setDuration(500)
-                .start();
-    }
-
-    private void showList() {
-        String[] frases = new String[]{
-                "transacción de ejemplo 01",
-                "transacción de ejemplo 02",
-                "transacción de ejemplo 03",
-                "transacción de ejemplo 04",
-                "transacción de ejemplo 05",
-                "transacción de ejemplo 06",
-                "transacción de ejemplo 07",
-                "transacción de ejemplo 08",
-                "transacción de ejemplo 09",
-                "transacción de ejemplo 10",
-                "transacción de ejemplo 11",
-                "transacción de ejemplo 12",
-                "transacción de ejemplo 13",
-                "transacción de ejemplo 14",
-                "transacción de ejemplo 15",
-                "transacción de ejemplo 16",
-                "transacción de ejemplo 17",
-                "transacción de ejemplo 18",
-                "transacción de ejemplo 19",
-                "transacción de ejemplo 20"
-        };
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, frases);
-        Log.d("ykb", "adapter frases: " + adapter);
-        listaFrases.setAdapter(adapter);
-        listaFrases.setAlpha(0f);
-        listaFrases.setVisibility(View.VISIBLE);
-
-        float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
-        listaFrases.animate()
-                .alpha(1f)
-                .translationY(newY)
                 .setDuration(500)
                 .start();
     }
@@ -264,7 +226,7 @@ public class HomeFragment extends Fragment {
 
 
 
-    private void mostrarTxHash() {
+    private void mostrarHistorial() {
         // Carga las preferencias compartidas
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
         // Recupera la dirección Bitcoin
@@ -303,7 +265,6 @@ public class HomeFragment extends Fragment {
                     }
 
                     // Actualizar la ListView en el hilo principal de la UI
-                    // Actualizar la ListView en el hilo principal de la UI
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -312,12 +273,9 @@ public class HomeFragment extends Fragment {
                                 @Override
                                 public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                                     View view = super.getView(position, convertView, parent);
-                                    TextView txHashView = view.findViewById(R.id.tx_hash);
                                     TextView txAmountView = view.findViewById(R.id.tx_amount);
-
-                                    String tx_hash = links.get(position).substring(29);  // Solo muestra el tx_hash
-                                    String compact_tx_hash = tx_hash.substring(0, 8) + " ... " + tx_hash.substring(tx_hash.length() - 8);
-                                    txHashView.setText("hash: " + compact_tx_hash);
+                                    TextView txFechaView = view.findViewById(R.id.tx_fecha);
+                                    TextView txHashView = view.findViewById(R.id.tx_hash);
 
                                     // Aquí debes obtener el monto de la transacción y determinar si es de entrada o salida
                                     // Esto dependerá de cómo estén estructurados los datos de tu API
@@ -325,12 +283,21 @@ public class HomeFragment extends Fragment {
                                     boolean is_incoming = true;  // Reemplaza esto con un booleano que indique si la transacción es de entrada
 
                                     if (is_incoming) {
-                                        txAmountView.setTextColor(Color.GREEN);
+                                        txAmountView.setTextColor(Color.parseColor("#006400"));
                                         txAmountView.setText("+" + String.format("%.8f", tx_amount));
                                     } else {
-                                        txAmountView.setTextColor(Color.RED);
+                                        txAmountView.setTextColor(Color.parseColor("#8B0000"));
                                         txAmountView.setText("-" + String.format("%.8f", tx_amount));
                                     }
+
+                                    // fecha
+                                    String tx_fecha = "3 agosto 2023";
+                                    txFechaView.setText("fecha: " + tx_fecha);
+
+                                    // hash
+                                    String tx_hash = links.get(position).substring(29);  // Solo muestra el tx_hash
+                                    String compact_tx_hash = tx_hash.substring(0, 8) + " ... " + tx_hash.substring(tx_hash.length() - 8);
+                                    txHashView.setText("hash: " + compact_tx_hash);
 
                                     return view;
                                 }
@@ -363,28 +330,6 @@ public class HomeFragment extends Fragment {
                     });
 
 
-/*                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, links);
-                            listaFrases.setAdapter(adapter);
-                            listaFrases.setVisibility(View.VISIBLE);
-
-                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                                @Override
-                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                                    String url = links.get(position);
-                                    Intent i = new Intent(Intent.ACTION_VIEW);
-                                    i.setData(Uri.parse(url));
-                                    startActivity(i);
-                                }
-                            });
-
-                            // Cierra el ProgressDialog después de cargar los datos
-                            progressDialog.dismiss();
-                        }
-                    });*/
-
                 } catch (JSONException e) {
                     e.printStackTrace();
                     progressDialog.dismiss();
@@ -393,84 +338,6 @@ public class HomeFragment extends Fragment {
         });
     }
 
-/*    private void mostrarTxHash() {
-        // Carga las preferencias compartidas
-        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
-        // Recupera la dirección Bitcoin
-        String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
-
-        OkHttpClient httpClient = new OkHttpClient();
-
-        Request request = new Request.Builder()
-                .url("https://api.blockchair.com/bitcoin/dashboards/address/" + miDireccionBitcoin + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6" )
-                .build();
-
-        // Muestra un ProgressDialog durante la carga
-        ProgressDialog progressDialog = new ProgressDialog(getContext());
-        progressDialog.setMessage("Cargando transacciones...");
-        progressDialog.show();
-
-        httpClient.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-                progressDialog.dismiss();
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
-                try {
-                    JSONObject jsonObject = new JSONObject(response.body().string());
-                    JSONArray txrefs = jsonObject.getJSONArray("txrefs");
-
-                    ArrayList<String> links = new ArrayList<>();
-                    for (int i = 0; i < txrefs.length(); i++) {
-                        String tx_hash = txrefs.getJSONObject(i).getString("tx_hash");
-                        links.add("https://mempool.space/es/tx/" + tx_hash);
-                    }
-                    // Imprime los datos (links) justo antes de configurar el adaptador
-                    Log.d("ykb", "links: " + links.toString());
-
-                    // Actualizar la ListView en el hilo principal de la UI
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, links);
-                            listaFrases.setAdapter(adapter);
-                            listaFrases.setAlpha(0f);
-                            listaFrases.setVisibility(View.VISIBLE);
-
-                            float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
-                            listaFrases.animate()
-                                    .alpha(1f)
-                                    .translationY(newY)
-                                    .setDuration(500)
-                                    .start();
-
-                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                                @Override
-                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                                    String url = links.get(position);
-                                    Intent i = new Intent(Intent.ACTION_VIEW);
-                                    i.setData(Uri.parse(url));
-                                    startActivity(i);
-                                }
-                            });
-
-                            // Cierra el ProgressDialog después de cargar los datos
-                            progressDialog.dismiss();
-                        }
-                    });
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    progressDialog.dismiss();
-                }
-            }
-        });
-    }*/
 
 
 
