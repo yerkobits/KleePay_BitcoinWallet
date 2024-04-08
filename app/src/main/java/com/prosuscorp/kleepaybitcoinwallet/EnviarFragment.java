@@ -6,8 +6,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
@@ -20,6 +22,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
@@ -37,22 +40,37 @@ import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.SegwitAddress;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.crypto.KeyCrypterException;
+import org.bitcoinj.crypto.TransactionSignature;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.params.MainNetParams;
-import org.bitcoinj.params.TestNet3Params;
+//import org.bitcoinj.params.TestNet3Params;
+import org.bitcoinj.script.Script;
+import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.MemoryBlockStore;
+import org.bitcoinj.wallet.KeyChain;
 import org.bitcoinj.wallet.Wallet;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.wallet.SendRequest;
+import org.bouncycastle.util.encoders.Hex;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.math.BigInteger;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import okhttp3.MediaType;
 import okhttp3.Response;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -69,101 +87,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import okhttp3.RequestBody;
+//import org.apache.commons.codec.binary.Hex;
 
 
 public class EnviarFragment extends Fragment {
-    private static final NetworkParameters params = TestNet3Params.get();
-    private WalletAppKit kit;
-    public void enviarBitcoinTestnet(String address, Coin amount) {
-        Log.d("ykb","enviarBitcointestnet entrando: " + address + " " + amount );
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<?> future = executor.submit(new Runnable() {
-            @Override
-            public void run() {
-
-                try {
-                    // Obtener el directorio de almacenamiento interno privado de la aplicación
-                    File directory = getActivity().getApplicationContext().getFilesDir();
-
-                    // Inicializar el kit de la billetera
-                    kit = new WalletAppKit(params, directory, "walletappkit-example");
-                    // Agregar un Listener para manejar los errores
-                    kit.addListener(new Service.Listener() {
-                        @Override
-                        public void failed(Service.State from, Throwable failure) {
-                            Log.e("ykb", "Error al iniciar WalletAppKit: ", failure);
-                        }
-                    }, MoreExecutors.directExecutor());
-
-                    Log.d("ykb", "enviarBitcoinTestnet kit: " + kit);
-
-
-                    // Iniciar el kit de forma asíncrona
-                    kit.startAsync();
-                    kit.awaitRunning();
-                    Log.d("ykb","enviarBitcoinTestnet iniciado: " );
-
-
-                    // Verificar si WalletAppKit se ha conectado correctamente
-                    if (kit.isRunning()) {
-                        Log.d("ykb", "WalletAppKit se ha conectado correctamente.");
-                    } else {
-                        Log.d("ykb", "WalletAppKit no se ha conectado correctamente.");
-                    }
-
-                    // Conectar a los nodos de la red Testnet
-                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("178.128.251.37", 18333)));
-                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("64.190.113.17", 18333)));
-//                    27.148.206.140
-//                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("node.testnet.bitcoin.sprovoost.nl", 18333)));
-//                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("bitcoin.testnet3.schildbach.de", 18333)));
-//                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("testnet-seed.bitcoin.jonasschnelli.ch", 18333)));
-//                    kit.peerGroup().addAddress(new PeerAddress(params, new InetSocketAddress("seed.tbtc.petertodd.org", 18333)));
-
-                    Log.d("ykb", "enviarBitcoinTestnet conectar: ");
-
-                    // Crear la dirección de envío
-                    Address sendToAddress = Address.fromString(params, address);
-                    Log.d("ykb", "WalletAppKit address: " + sendToAddress);
-
-                    // Obtener la dirección
-                    Address miAddress = kit.wallet().currentReceiveAddress();
-                    Log.d("ykb", "WalletAppKit address: " + miAddress);
-                    // Obtener la clave privada
-//        ECKey key = kit.wallet().findKeyFromPubHash(address.getHash160());
-//        System.out.println("Private Key: " + key.getPrivateKeyEncoded(params).toString());
-
-                    // Crear una solicitud de envío
-                    SendRequest request = SendRequest.to(sendToAddress, amount);
-
-                    // Completar la transacción
-                    kit.wallet().completeTx(request);
-
-                    // Enviar la transacción
-                    kit.peerGroup().broadcastTransaction(request.tx).broadcast();
-
-                } catch (InsufficientMoneyException e) {
-                    System.out.println("Saldo insuficiente para completar la transacción.");
-                }
-
-        }
-        });
-        try {
-            future.get(30, TimeUnit.SECONDS);  // Esperar hasta X segundos
-        } catch (TimeoutException e) {
-            future.cancel(true);  // Cancelar la tarea si se agota el tiempo
-            Log.d("ykb", "La conexión a la red Bitcoin Testnet ha tardado demasiado. Por favor, inténtalo de nuevo más tarde.");
-        } catch (Exception e) {
-            Log.e("ykb", "Se produjo un error: ", e);
-        } finally {
-            executor.shutdownNow();  // Cerrar el ExecutorService
-        }
-
-
-
-    }
-
 
     private EditText inputDireccion;
     private Button buttonEscanear;
@@ -234,27 +162,13 @@ Log.d("ykb", "DEBUG: montoEnviar 00: " + inputMonto.getText().toString() );
 Log.d("ykb", "DEBUG: montoEnviar 01" );
                 String direccionEscrito = inputDireccion.getText().toString();
 
+                // Carga las preferencias compartidas
+                SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+                // Recupera la dirección Bitcoin
+                String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
+                String miClavePrivada = sharedPreferences.getString("privateKey", null);
 
-                if (montoEscrito.isEmpty()) {
-                    Log.d("ykb", "DEBUG: montoEnviar 02" );
-                    new AlertDialog.Builder( getActivity() )
-                            .setTitle("Campo vacío")
-                            .setMessage("Por favor, completa el campo 'monto a enviar'.")
-                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int which) {
-                                    dialog.dismiss();
-                                }
-                            })
-                            .show();
-                    Log.d("ykb", "DEBUG: montoEnviar 03" );
-//                    inputMonto.setText();
-                    // Carga las preferencias compartidas
-                    SharedPreferences sharedPreferences = getActivity().getSharedPreferences("PREFS", Context.MODE_PRIVATE);
-                    // Recupera la dirección Bitcoin
-                    String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
-                    autocompletarDireccionMonto(miDireccionBitcoin);
-
-                } else if (direccionEscrito.isEmpty()) {
+                if (direccionEscrito.isEmpty()) {
                     Log.d("ykb", "DEBUG: direccion 02");
                     new AlertDialog.Builder(getActivity())
                             .setTitle("Campo vacío")
@@ -266,12 +180,30 @@ Log.d("ykb", "DEBUG: montoEnviar 01" );
                                 }
                             })
                             .show();
+                    autocompletarDireccionMonto(miDireccionBitcoin);
                     Log.d("ykb", "DEBUG: direccion 03");
+                } else if ( montoEscrito.isEmpty() ||  !montoEscrito.matches("\\d+(\\.\\d+)?") ) {
+                    Log.d("ykb", "DEBUG: montoEnviar 02" );
+                    new AlertDialog.Builder( getActivity() )
+                            .setTitle("Campo vacío")
+                            .setMessage("Por favor, escribe un monto válido..")
+                            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    dialog.dismiss();
+                                }
+                            })
+                            .show();
+                    Log.d("ykb", "DEBUG: montoEnviar 03" );
                 } else {
                     Log.d("ykb", "DEBUG: montoEnviar 04" );
                     // Procesa el monto a enviar
 //                  enviarTransaccionTestnet(useTestNet);
-                    enviarTransaccion();
+                    new Thread(new Runnable() {
+                        public void run() {
+                            enviarTransaccion(miClavePrivada);
+                        }
+                    }).start();
+
                 }
 
 
@@ -307,94 +239,186 @@ Log.d("ykb", "DEBUG: montoEnviar 01" );
     }
 
 
-
-    private void enviarTransaccion() {
-        String montoConComa = inputMonto.getText().toString();
-        String montoConPunto = montoConComa.replace(',', '.');
-
-        // Obtén la dirección de Bitcoin y el monto a enviar
-        String bitcoinAddress = inputDireccion.getText().toString();
-        Coin amount = Coin.parseCoin(montoConPunto);
-        Log.d("ykb", "DEBUG: enviar 02" );
-
-        NetworkParameters params;
-        params = MainNetParams.get();
-
-        Wallet wallet = new Wallet(params);
-        BlockStore blockStore = new MemoryBlockStore(params);
-        BlockChain chain;
-        PeerGroup peerGroup;
-
-        Log.d("ykb", "DEBUG: enviar 03" );
+    public void enviarTransaccion(String clavePrivada) {
         try {
-            chain = new BlockChain(params, blockStore);
-            Log.d("ykb", "DEBUG: enviar 04a" );
-        } catch (BlockStoreException e) {
-            Log.d("ykb", "DEBUG: enviar 04b" );
-            e.printStackTrace();
-            return;
-        }
-        peerGroup = new PeerGroup(params, chain);
-        peerGroup.addPeerDiscovery(new DnsDiscovery(params));
-        peerGroup.start();
+            // Crea una red
+            NetworkParameters params = MainNetParams.get();
 
-        // Crea una transacción Bitcoin
-        Transaction tx = new Transaction(params);
-        SegwitAddress address = SegwitAddress.fromBech32(params, bitcoinAddress);
-        tx.addOutput(amount, address);
+            // Carga la clave privada
+            DumpedPrivateKey dumpedPrivateKey = DumpedPrivateKey.fromBase58(params, clavePrivada);
+            ECKey key = dumpedPrivateKey.getKey();
 
-        Log.d("ykb", "DEBUG: enviar 05" );
-        // Crea un SendRequest y firma la transacción
-//                SendRequest request = SendRequest.forTx(tx);
-//                wallet.signTransaction(request);
-        SendRequest request = SendRequest.forTx(tx);
-        try {
-            Log.d("ykb", "DEBUG: enviar 05.1 " + request );
-            wallet.signTransaction(request);
-            Log.d("ykb", "DEBUG: enviar 05.2" );
-        } catch (KeyCrypterException e) {
-            Log.d("ykb", "DEBUG: enviar 05.3" );
-            e.printStackTrace();
-            Log.d("ykb", "DEBUG: enviar 05.4" );
-            // Aquí puedes manejar la excepción o mostrar un mensaje al usuario
+            // Obtiene la dirección desde la clave privada
+            String miAddress = SegwitAddress.fromKey(params, key).toBech32();
+            Log.d("ykb", "dirección desde privateKey: " + miAddress);
+
+// Llama a la función balance()
+            String balanceStr = balance(miAddress);
+            Log.d("ykb", "balance1: " + balanceStr );
+
+            double wb = 0; // Inicializa wb aquí
+            try {
+                // Intenta convertir balanceStr a un número largo
+                wb = Double.parseDouble(balanceStr) * 1e8;
+                Log.d("ykb", "balance2: " + wb );
+            } catch (NumberFormatException e) {
+                // Imprime el error si balanceStr no puede ser convertido a un número largo
+                Log.d("ykb", "Error al convertir balanceStr a un número largo: " + e.getMessage());
+            }
+
+// Calcula el monto a enviar (7% del balance)
+            long oa = (long) (wb * 0.07);
+
+
+            // Crea una transacción
+            Transaction tx = new Transaction(params);
+
+            // Aquí debes agregar los inputs de la transacción
+            CompletableFuture<JSONObject> futureJson = jsonBlockchair(miAddress);
+            JSONObject json = futureJson.get();  // Esto bloqueará hasta que el CompletableFuture se complete
+            JSONArray utxos = json.getJSONObject("data").getJSONObject(miAddress).getJSONArray("utxo");
+            Log.d("ykb", "utxos: " + utxos );
+
+            try {
+                JSONObject data = json.getJSONObject("data");
+                JSONObject addressInfo = data.getJSONObject(miAddress);
+                String scriptHex = addressInfo.getJSONObject("address").getString("script_hex");
+
+                Coin amount = Coin.valueOf(oa);
+                Log.d("ykb", "amount: " + amount);
+                Address destination = Address.fromString(params, miAddress);
+                Log.d("ykb", "destination: " + destination);
+                tx.addOutput(amount, destination);
+                Log.d("ykb", "Transaction after adding output: " + tx);
+
+                utxos = json.getJSONObject("data").getJSONObject(miAddress).getJSONArray("utxo");
+                Log.d("ykb", "utxos: " + utxos);
+
+                for (int i = 0; i < utxos.length(); i++) {
+                    JSONObject utxo = utxos.getJSONObject(i);
+                    String txHash = utxo.getString("transaction_hash");
+                    int outputIndex = utxo.getInt("index");
+                    long value = utxo.getLong("value");
+
+                    // Convierte el script_hex a un array de bytes
+                    byte[] scriptBytes = org.apache.commons.codec.binary.Hex.decodeHex(scriptHex.toCharArray());
+
+                    // Crea un nuevo Script a partir del array de bytes
+                    Script scriptPubKey = new Script(scriptBytes);
+
+                    Log.d("ykb", "params: " + params);
+                    Log.d("ykb", "outputIndex: " + outputIndex);
+                    Log.d("ykb", "txHash: " + txHash);
+                    Log.d("ykb", "scriptPubKey.getProgram(): " + Arrays.toString(scriptPubKey.getProgram()));
+                    Log.d("ykb", "Coin.valueOf(value): " + Coin.valueOf(value));
+
+                    TransactionOutPoint outPoint = new TransactionOutPoint(params, outputIndex, Sha256Hash.wrap(txHash));
+                    Log.d("ykb", "TransactionOutPoint: " + outPoint);
+                    TransactionInput input = new TransactionInput(params, null, scriptPubKey.getProgram(), outPoint, Coin.valueOf(value));
+                    Log.d("ykb", "TransactionInput: " + input);
+                    tx.addInput(input);
+                }
+
+            } catch (Exception e) {
+                // Imprime el error si ocurre una excepción
+                Log.d("ykb", "Error: " + e.getMessage());
+            }
+
+// Firma la transacción
+            for (int i = 0; i < tx.getInputs().size(); i++) {
+                try {
+                    TransactionInput input = tx.getInput(i);
+                    Log.d("ykb", "Procesando input: " + i);
+                    if (input != null) {
+                        Log.d("ykb", "Revisando outPoint a: " + input.getOutpoint());
+                        TransactionOutPoint outPoint = input.getOutpoint();
+                        Log.d("ykb", "Revisando outPoint b: " + outPoint );
+                        if (outPoint != null) {
+                            Log.d("ykb", "Revisando outPoint c: " + outPoint.getConnectedOutput() );
+                            TransactionOutput connectedOutput = outPoint.getConnectedOutput();
+                            if (connectedOutput != null) {
+                                Script scriptPubKey = connectedOutput.getScriptPubKey();
+                                if (scriptPubKey != null) {
+                                    Log.d("ykb", "Calculando firma para el input: " + i);
+                                    tx.calculateSignature(i, key, scriptPubKey, Transaction.SigHash.ALL, false);
+                                } else {
+                                    Log.d("ykb", "El script de la clave pública del output conectado es nulo para el input: " + i);
+                                }
+                            } else {
+                                Log.d("ykb", "El output conectado es nulo para el input: " + i);
+                            }
+                        } else {
+                            Log.d("ykb", "El OutPoint es nulo para el input: " + i);
+                        }
+                    } else {
+                        Log.d("ykb", "El input es nulo: " + i);
+                    }
+                } catch (Exception e) {
+                    Log.e("ykb", "Error al calcular la firma para el input: " + i, e);
+                }
+            }
+
+
+
+
+
+
+
+
+            // Aquí puedes enviar la transacción a la red
+// Aquí puedes enviar la transacción a la red
+            String apiUrl = "https://api.blockchair.com/bitcoin/push/transaction";
+
+// Convierte la transacción a formato hexadecimal
+            String txHex = Hex.toHexString(tx.bitcoinSerialize());
+            Log.d("ykb", "txHex: " + txHex);
+
+
+// Crea un cliente HTTP
+            OkHttpClient client = new OkHttpClient();
+
+// Crea una solicitud POST
+            RequestBody body = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), txHex);
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .post(body)
+                    .build();
+
+// Realiza la solicitud y obtén la respuesta
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(okhttp3.Call call, IOException e) {
+                    Log.e("ykb", "Error al enviar la transacción", e);
+                }
+
+                @Override
+                public void onResponse(okhttp3.Call call, Response response) throws IOException {
+                    if (!response.isSuccessful()) {
+                        Log.e("ykb", "Código inesperado: " + response);
+                    } else {
+                        // Aquí puedes manejar la respuesta
+                        String responseStr = response.body().string();
+                        Log.d("ykb", "Respuesta: " + responseStr);
+                    }
+                }
+            });
+
+
         } catch (Exception e) {
-            Log.d("ykb", "DEBUG: Excepción no controlada: "+e );
-            e.printStackTrace();
-            // Aquí puedes manejar la excepción o mostrar un mensaje al usuario
-        }
-
-        Log.d("ykb", "DEBUG: enviar 06" );
-        // Firmar y transmitir la transacción
-        try {
-            Log.d("ykb", "DEBUG: enviar 07a" );
-            Wallet.SendResult result = wallet.sendCoins(peerGroup, SendRequest.forTx(tx));
-            result.broadcastComplete.get();
-        } catch (InsufficientMoneyException e) {
-            Log.d("ykb", "DEBUG: enviar 07b_ " + amount );
-            // Manejo de la excepción InsufficientMoneyException
-            e.printStackTrace();
-            new AlertDialog.Builder(getActivity())
-                    .setTitle("Error")
-                    .setMessage("No tienes suficientes fondos para realizar esta transacción.")
-                    .setPositiveButton(android.R.string.ok, null)
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
-        } catch (InterruptedException | ExecutionException e) {
-            Log.d("ykb", "DEBUG: enviar 07c" );
             e.printStackTrace();
         }
-
     }
 
 
 
-    private void autocompletarDireccionMonto(String address) {
+    public CompletableFuture<JSONObject> jsonBlockchair(String address) {
+        CompletableFuture<JSONObject> future = new CompletableFuture<>();
 
         // Crea un cliente HTTP
         OkHttpClient client = new OkHttpClient();
 
-//        String url = "https://blockchain.info/rawaddr/" + address;
-        String url = "https://api.blockcypher.com/v1/btc/main/addrs/" + address;
+        // Cambia la URL para usar la API de Blockchair
+        String url = "https://api.blockchair.com/bitcoin/dashboards/address/" + address  + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6" ;
 
         // Crea una solicitud GET
         Request request = new Request.Builder()
@@ -405,7 +429,7 @@ Log.d("ykb", "DEBUG: montoEnviar 01" );
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(okhttp3.Call call, IOException e) {
-                e.printStackTrace();
+                future.completeExceptionally(e);
             }
 
             @Override
@@ -413,29 +437,52 @@ Log.d("ykb", "DEBUG: montoEnviar 01" );
                 if (response.isSuccessful()) {
                     final String myResponse = response.body().string();
 
-                    // Aquí puedes parsear la respuesta JSON para obtener el saldo
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                JSONObject json = new JSONObject(myResponse);
-                                long satoshis = json.getLong("final_balance");
-                                double bitcoins = satoshis / 1e8;
-                                String montoFormateado = String.format("%.8f", bitcoins);
-                                String montoConPunto = montoFormateado.replace(',', '.');
-//                                textSaldo.setText(montoConPunto + " BTC");
-                                inputMonto.setText(montoConPunto);
-                                inputDireccion.setText(address);
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
+                    // Aquí puedes parsear la respuesta JSON
+                    try {
+                        JSONObject json = new JSONObject(myResponse);
+                        future.complete(json);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
+                    }
+                } else {
+                    future.completeExceptionally(new IOException("Unexpected code " + response));
                 }
             }
         });
+
+        return future;
     }
 
+    public String balance(String address) {
+        CompletableFuture<String> futureBalance = jsonBlockchair(address).thenApply(json -> {
+            try {
+                JSONObject data = json.getJSONObject("data");
+                JSONObject addressInfo = data.getJSONObject(address);
+                JSONObject balanceInfo = addressInfo.getJSONObject("address");
+                long satoshis = balanceInfo.getLong("balance");
+                double bitcoins = satoshis / 1e8;
+                String montoFormateado = String.format("%.8f", bitcoins);
+                String montoConPunto = montoFormateado.replace(',', '.');
+                return montoConPunto;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // Bloquea el hilo actual hasta que se complete el CompletableFuture
+        return futureBalance.join();
+    }
+
+    private void autocompletarDireccionMonto(String address) {
+        try {
+            // Llama a la función balance() y asigna su resultado a una variable String
+            String balanceStr = balance(address);
+            inputMonto.setText(balanceStr);
+            inputDireccion.setText(address);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
 }
