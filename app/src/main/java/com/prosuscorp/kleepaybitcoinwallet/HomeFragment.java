@@ -64,8 +64,8 @@ public class HomeFragment extends Fragment {
     private Button buttonEnviar;
     private TextView textSaldo;
     private LinearLayout buttonLayout;
-    private Button historialTransacciones;
-    private ListView listaFrases;
+    private Button buttonHistorial;
+    private ListView listaHistorial;
     private boolean isListVisible = false;
 
     @Override
@@ -77,14 +77,14 @@ public class HomeFragment extends Fragment {
         buttonEnviar = view.findViewById(R.id.button_enviar);
         textSaldo = view.findViewById(R.id.text_saldo);
         buttonLayout = view.findViewById(R.id.button_layout);
-        historialTransacciones = view.findViewById(R.id.historialTransacciones);
-        listaFrases = view.findViewById(R.id.listaFrases);
+        buttonHistorial = view.findViewById(R.id.button_historial);
+        listaHistorial = view.findViewById(R.id.lista_historial);
 
-        historialTransacciones.setOnClickListener(new View.OnClickListener() {
+        buttonHistorial.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (isListVisible) {
-                    hideList();
+                    listaHistorial.setVisibility(View.GONE);
                     moveButtonsAndSaldoToCenter();
                     textSaldo.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36);
                 } else {
@@ -157,9 +157,10 @@ public class HomeFragment extends Fragment {
                 .withEndAction(new Runnable() {
                     @Override
                     public void run() {
-                          mostrarHistorial();
-
+                        mostrarHistorial();
+                        listaHistorial.setVisibility(View.VISIBLE);
                     }
+
                 })
                 .start();
     }
@@ -172,11 +173,6 @@ public class HomeFragment extends Fragment {
                 .translationY(0)
                 .setDuration(500)
                 .start();
-    }
-
-
-    private void hideList() {
-        listaFrases.setVisibility(View.GONE);
     }
 
 
@@ -235,141 +231,121 @@ public class HomeFragment extends Fragment {
         // Recupera la dirección Bitcoin
         String miDireccionBitcoin = sharedPreferences.getString("bitcoinAddress", null);
 
-        OkHttpClient httpClient = new OkHttpClient();
-
-        Request request = new Request.Builder()
-                .url("https://api.blockchair.com/bitcoin/dashboards/address/" + miDireccionBitcoin + "?key=A___GKSHlrRDzkAcIKbPuYoaAHLBcLO6" )
-                .build();
-
-        // Muestra un ProgressDialog durante la carga
-        ProgressDialog progressDialog = new ProgressDialog(getContext());
-        progressDialog.setMessage("Cargando transacciones...");
-        progressDialog.show();
-
-        httpClient.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-                progressDialog.dismiss();
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
+            ArrayList<String> links_hash = new ArrayList<>();
+            jsonBlockcypher(miDireccionBitcoin).thenAccept(json -> {
+                Log.d("ykb", "cargando Blockchair: " + json);
                 try {
-                    JSONObject jsonObject = new JSONObject(response.body().string());
-                    JSONArray transactions = jsonObject.getJSONObject("data").getJSONObject(miDireccionBitcoin).getJSONArray("transactions");
+                    JSONArray txrefs = json.getJSONArray("txrefs");
+                    for (int n = 0; n < txrefs.length(); n++) {
+                        JSONObject txref = txrefs.getJSONObject(n);
 
-                    ArrayList<String> links_hash = new ArrayList<>();
-                    String tx_hash;
-                    for (int i = 0; i < transactions.length(); i++) {
-                        tx_hash = transactions.getString(i);
-                        links_hash.add("https://blockstream.info/tx/" + tx_hash);
-                    }
+                        String monto;
+                        if (Integer.parseInt(txref.getString("tx_input_n")) < 0 ) {
+                            monto = String.format("%-32s", "+" + txref.getString("value"));
+                        } else {
+                            monto = String.format("%-32s", "-" + txref.getString("value"));
+                        }
 
-                    jsonBlockcypher(miDireccionBitcoin).thenAccept(json -> {
+                        String fecha = txref.getString("confirmed");
+                        String hash = String.format("%-64s", txref.getString("tx_hash"));
+
+                        // Formatea la fecha
+                        SimpleDateFormat originalFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
+                        SimpleDateFormat targetFormat = new SimpleDateFormat("dd MMMM yyyy HH:mm", new Locale("es", "ES"));
+
+            /*          // Formatea el monto
+                        double tx_amount = 0.00010000;  // Reemplaza esto con el monto de la transacción
+                        boolean is_incoming = true;  // Reemplaza esto con un booleano que indique si la transacción es de entrada
+                            if (is_incoming) {
+                                txAmountView.setTextColor(Color.parseColor("#006400"));
+                                txAmountView.setText("+" + String.format("%.8f", tx_amount));
+                            } else {
+                                txAmountView.setTextColor(Color.parseColor("#8B0000"));
+                                txAmountView.setText("-" + String.format("%.8f", tx_amount));
+                            }*/
+                        String info_transaccion;
                         try {
-                            JSONArray txrefs = json.getJSONArray("txrefs");
-                            for (int n = 0; n < txrefs.length(); n++) {
-                                JSONObject txref = txrefs.getJSONObject(n);
-                                String fecha = txref.getString("confirmed");
-                                String hash = txref.getString("tx_hash");
-                                String monto = txref.getString("value");
+                            Date date = originalFormat.parse(fecha);
+                            String formattedDate = String.format("%-32s", targetFormat.format(date) ) ;
+                            info_transaccion = monto + formattedDate + hash ;
 
-                                // Formatea la fecha
-                                SimpleDateFormat originalFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
-                                SimpleDateFormat targetFormat = new SimpleDateFormat("dd MMMM yyyy HH:mm", new Locale("es", "ES"));
-                                try {
-                                    Date date = originalFormat.parse(fecha);
-                                    String formattedDate = targetFormat.format(date);
-                                    Log.d("ykb", "Blockcypher: " + formattedDate +" "+ monto +" "+ hash);
-                                } catch (ParseException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        } catch (JSONException e) {
+                            Log.d("ykb", "info transacción: \n" + info_transaccion);
+                            links_hash.add(info_transaccion);
+//                            links_hash.add("https://blockstream.info/tx/" + hash);
+                        } catch (ParseException e) {
                             e.printStackTrace();
                         }
-                    });
 
 
-                    // Actualizar la ListView en el hilo principal de la UI
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), R.layout.list_item, R.id.tx_hash, links_hash) {
-                                @NonNull
-                                @Override
-                                public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                                    View view = super.getView(position, convertView, parent);
-                                    TextView txAmountView = view.findViewById(R.id.tx_amount);
-                                    TextView txFechaView = view.findViewById(R.id.tx_fecha);
-                                    TextView txHashView = view.findViewById(R.id.tx_hash);
+                        // Actualizar la ListView en el hilo principal de la UI
+                        getActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+//                                Log.d("ykb", "links hash: " + links_hash);
+                                ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), R.layout.list_item, R.id.tx_hash, links_hash) {
+                                    @NonNull
+                                    @Override
+                                    public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                                        View view = super.getView(position, convertView, parent);
+                                        TextView txHashView = view.findViewById(R.id.tx_hash);
 
-                                    // Aquí debes obtener el monto de la transacción y determinar si es de entrada o salida
-                                    // Esto dependerá de cómo estén estructurados los datos de tu API
-                                    double tx_amount = 0.00010000;  // Reemplaza esto con el monto de la transacción
-                                    boolean is_incoming = true;  // Reemplaza esto con un booleano que indique si la transacción es de entrada
-                                        if (is_incoming) {
-                                            txAmountView.setTextColor(Color.parseColor("#006400"));
-                                            txAmountView.setText("+" + String.format("%.8f", tx_amount));
+                                        // hash
+//                                        String textoHash = links_hash.get(position).substring(29);  // Solo muestra el hash
+                                        String textoHash = links_hash.get(position).substring(links_hash.get(position).length() - 64);
+                                        String textoHashCompacto = textoHash.substring(0, 8) + " ... " + textoHash.substring(textoHash.length() - 8);
+                                        String monto = links_hash.get(position).length() >= 32 ? links_hash.get(position).substring(0, 32) : links_hash.get(position);
+                                        String fecha = links_hash.get(position).length() >= 32 ? links_hash.get(position).substring(33, 63) : links_hash.get(position);
+
+                                        txHashView.setText(monto + "\nfecha: " + fecha + "\nhash: " + textoHashCompacto);
+                                        if (monto.contains("+")) {
+                                            txHashView.setTextColor(Color.parseColor("#006400"));
                                         } else {
-                                            txAmountView.setTextColor(Color.parseColor("#8B0000"));
-                                            txAmountView.setText("-" + String.format("%.8f", tx_amount));
+                                            txHashView.setTextColor(Color.parseColor("#8B0000"));
                                         }
+                                        return view;
+                                    }
 
-                                    // fecha
-                               /*     if (!links_fecha.isEmpty()) {
-                                        String tx_fecha = links_fecha.get(0);
-                                        txFechaView.setText("fecha: " + tx_fecha);
-                                    } else {
-                                        Log.d("ykb", "La lista está vacía");
-                                    }*/
+                                };
+                                listaHistorial.setAdapter(adapter);
+                                listaHistorial.setAlpha(0f);
+                                float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
+                                listaHistorial.animate()
+                                        .alpha(1f)
+                                        .translationY(newY)
+                                        .setDuration(500)
+                                        .start();
 
+                                listaHistorial.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                    @Override
+                                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                        Log.d("ykb", "Position: " + position + ", Size of links_hash: " + links_hash.size());
+                                        if (position < links_hash.size()) {
+                                            String hash = links_hash.get(position).substring(links_hash.get(position).length() - 64);
+                                            String url = "https://blockstream.info/tx/" + hash ;
+                                            Log.d("ykb", "enlace: " + url);
+                                            Intent i = new Intent(Intent.ACTION_VIEW);
+                                            i.setData(Uri.parse(url));
+                                            startActivity(i);
+                                        } else {
+                                            Log.d("ykb", "Invalid position: " + position);
+                                        }
+                                    }
+                                });
 
-                                    // hash
-                                    String textoHash = links_hash.get(position).substring(29);  // Solo muestra el hash
-                                    String textoHashCompacto = textoHash.substring(0, 8) + " ... " + textoHash.substring(textoHash.length() - 8);
-                                    txHashView.setText("hash: " + textoHashCompacto);
-
-                                    return view;
-                                }
-
-                            };
-                            listaFrases.setAdapter(adapter);
-                            listaFrases.setAlpha(0f);
-                            listaFrases.setVisibility(View.VISIBLE);
-
-                            float newY = -buttonLayout.getY()*3 + textSaldo.getHeight();
-                            listaFrases.animate()
-                                    .alpha(1f)
-                                    .translationY(newY)
-                                    .setDuration(500)
-                                    .start();
-
-                            listaFrases.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                                @Override
-                                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                                    String url = links_hash.get(position);
-                                    Intent i = new Intent(Intent.ACTION_VIEW);
-                                    i.setData(Uri.parse(url));
-                                    startActivity(i);
-                                }
-                            });
-
-                            // Cierra el ProgressDialog después de cargar los datos
-                            progressDialog.dismiss();
-                        }
-                    });
+                            // Notifica al adaptador que su contenido ha cambiado
+                            adapter.notifyDataSetChanged();
+                            }
+                        });
 
 
+                    }
                 } catch (JSONException e) {
                     e.printStackTrace();
-                    progressDialog.dismiss();
                 }
-            }
-        });
+            });
+
+
+
     }
 
 
@@ -473,21 +449,36 @@ public class HomeFragment extends Fragment {
                 .url(url)
                 .build();
 
+        // Muestra el ProgressDialog
+        ProgressDialog progressDialog = new ProgressDialog(getContext());
+        progressDialog.setMessage("Cargando información desde Blockchain...");
+        progressDialog.show();
+
         // Realiza la solicitud y obtén la respuesta
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(okhttp3.Call call, IOException e) {
+                Log.d("ykb", "respuesta interna jsonBlockcypher: " + "onFailure");
                 future.completeExceptionally(e);
+                progressDialog.dismiss();
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Error")
+                        .setMessage("No se ha logrado conectar. Intente más tarde.")
+                        .setPositiveButton(android.R.string.ok, null)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
             }
 
             @Override
             public void onResponse(okhttp3.Call call, Response response) throws IOException {
+                progressDialog.dismiss();
                 if (response.isSuccessful()) {
                     final String myResponse = response.body().string();
 
                     // Aquí puedes parsear la respuesta JSON
                     try {
                         JSONObject json = new JSONObject(myResponse);
+                        Log.d("ykb", "respuesta interna jsonBlockcypher: " + json);
                         future.complete(json);
                     } catch (Exception e) {
                         future.completeExceptionally(e);

@@ -38,7 +38,7 @@
             android:backgroundTint="@color/green"/>
 
         <Button
-            android:id="@+id/historialTransacciones"
+            android:id="@+id/button_historial"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -58,7 +58,7 @@
     </LinearLayout>
 
     <ListView
-        android:id="@+id/listaFrases"
+        android:id="@+id/lista_historial"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/button_layout"
